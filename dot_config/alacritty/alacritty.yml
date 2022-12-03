@@ -4,8 +4,14 @@
 # environment variables. Some entries may override variables
 # set by alacritty itself.
 
-import:
-  - ~/.alacritty-colorscheme/themes/campbell.yaml
+url:
+  # Default:
+  #   - (macOS) open
+  #   - (Linux/BSD) xdg-open
+  #   - (Windows) explorer
+  launcher:
+    program: xdg-open
+    args: []
 
 env:
   # TERM variable
@@ -42,7 +48,7 @@ window:
   padding:
     x: 0
     y: 0
-
+    
   # Spread additional padding evenly around the terminal content.
   #dynamic_padding: false
 
@@ -55,7 +61,7 @@ window:
   # Values for `decorations` (macOS only):
   #     - transparent: Title bar, transparent background and title bar buttons
   #     - buttonless: Title bar, transparent background and no title bar buttons
-  decorations: buttonless
+  decorations: none
 
   # Background opacity
   #
@@ -105,15 +111,15 @@ window:
 # Font configuration
 font:
   normal:
-    family: MesloLGS NF
+    family: Hack Nerd Font
     style: Regular
 
   bold:
-    family: MesloLGS NF
+    family: Hack Nerd Font
     style: Bold
 
   italic:
-    family: MesloLGS NF
+    family: Hack Nerd Font
     style: Italic
 
   # Point size
