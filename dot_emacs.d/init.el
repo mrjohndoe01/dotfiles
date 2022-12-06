@@ -48,7 +48,7 @@
 
 ;;Themes and font
 (load-theme 'modus-vivendi t)
-(set-face-attribute 'default nil :font"Fira Code" :height 130)
+(set-face-attribute 'default nil :font"FiraCode Nerd Font" :height 130)
 
 (column-number-mode)
 (global-display-line-numbers-mode t)
@@ -192,6 +192,9 @@
   (org-mode-hook . my-org-mode-hook)
   :config
   (setq calendar-week-start-day 1)
+  (require 'org-habit)
+  (add-to-list 'org-modules 'org-habit)
+  (setq org-habit-graph-column 60)
   (custom-set-faces
   '(org-level-1 ((t (:inherit outline-1 :height 2.0))))
   '(org-level-2 ((t (:inherit outline-2 :height 1.5))))
@@ -199,22 +202,50 @@
   '(org-level-4 ((t (:inherit outline-4 :height 1.0))))
   '(org-level-5 ((t (:inherit outline-5 :height 1.0))))
   '(org-document-title ((t (:inherit default :height 2.0)))))
-  (setq org-capture-templates '(("t" "Todo [inbox]" entry
-                               (file+headline "~/Documents/ORG/gtd/inbox.org" "Tasks")
-                               "* TODO %i%?")
-                              ("T" "Tickler" entry
-                               (file+headline "~/Documents/ORG/gtd/tickler.org" "Tickler")
-                               "* %i%? \n %U")))
+  (setq org-agenda-files
+	'("~/Documents/ORG/Agenda/agenda.org"
+	  "~/Documents/ORG/Agenda/todo.org"
+	  "~/Documents/ORG/Agenda/habits.org"))
+  (setq org-capture-templates '(("p" "planer")
+				("pt" "todo" entry (file "~/Documents/ORG/Agenda/todo.org")
+                                 "* TODO %?\n  %U\n  %a\n  %i" :empty-lines 1)
+			        ("pd" "Agenda" entry (file+olp "~/Documents/ORG/Agenda/agenda.org" "Not Started")
+                                 "* TODO %?\n  %U\n  %a\n  %i" :empty-lines 1)))
+  (setq org-refile-targets
+    '(("archive.org" :maxlevel . 1)
+      ("agenda.org" :maxlevel . 1)
+      ("todo.org" :maxlevel . 1))
+    )
+  (advice-add 'org-refile :after 'org-save-all-org-buffers)
   (setq org-image-actual-width nil)
   (setq org-enforce-todo-dependencies t)
   (setq org-log-done 'time)
-  (setq org-agenda-files '("~/Documents/ORG/gtd/inbox.org"
-			   "~/Documents/ORG/gtd/gtd.org"
-			   "~/Documents/ORG/gtd/tickler.org"))
-  (setq org-refile-targets '(( "~/Documents/ORG/gtd/gtd.org" :maxlevel . 3)
-                           ( "~/Documents/ORG/gtd/someday.org" :level . 1)
-                           ( "~/Documents/ORG/gtd/tickler.org" :maxlevel . 2)))
-  (setq org-todo-keywords '((sequence "TODO(t)" "WAITING(w)" "|" "DONE(d)" "CANCELLED(c)"))))
+  (setq org-todo-keywords '((sequence "TODO(t)" "PLANING(p)" "NEXT(n)" "WAITING(w)" "|" "DONE(d)" "CANCELLED(c)" "SKIPED(s)")))
+  (setq org-agenda-custom-commands
+	'(("d" "Dashboard"
+	   ((agenda "" ((org-deadline-warning-days 7)))
+	    (todo "NEXT"
+		  ((org-agenda-overriding-header "Next Tasks")))
+	    (tags-todo "+personal" ((org-agenda-overriding-header "Personal Tasks")))
+	    (tags-todo "+uni" ((org-agenda-overriding-header "University Tasks")))))
+	  ("P" "Personal Tasks" tags-todo "+personal")
+	  ("U" "University Tasks" tags-todo "+uni")
+	  ("H" "Homeworks" tags-todo "+homework")
+	  ("S" "Shopping" tags-todo "+shoping"))))
+
+(defun find-org-todo ()
+  "TODO list"
+  (interactive)
+  (find-file "~/Documents/ORG/Agenda/todo.org"))
+
+(global-set-key (kbd "C-c T") 'find-org-todo)
+
+(defun find-org-agenda ()
+  "Personal Agenda"
+  (interactive)
+  (find-file "~/Documents/ORG/Agenda/agenda.org"))
+
+(global-set-key (kbd "C-c A") 'find-org-agenda)
 
 (add-to-list 'auto-mode-alist '("\\.org\\'" . org-mode))
 (global-set-key "\C-c l" 'org-store-link)
@@ -222,6 +253,8 @@
 
 (global-set-key (kbd "C-c a") #'org-agenda)
 (global-set-key (kbd "C-c c") #'org-capture)
+(global-set-key (kbd "C-c r") #'org-refile)
+(global-set-key (kbd "C-c s") #'org-schedule)
 
 ;;Hugo Blog file
 (defun find-blog ()
