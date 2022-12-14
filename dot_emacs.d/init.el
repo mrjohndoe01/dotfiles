@@ -21,6 +21,11 @@
 (scroll-bar-mode -1)
 (setq inhibit-startup-message t)
 
+(when (eq system-type 'darwin)
+  (set-frame-parameter nil 'fullscreen 'fullboth)
+  (setq mac-right-option-modifier 'super)
+  (setq python-shell-interpreter "/Library/Frameworks/Python.framework/Versions/3.11/bin/python3"))
+
 ;; Clean folder
 (setq make-backup-files nil)
 
@@ -34,14 +39,33 @@
 
 (setq user-emacs-directory (expand-file-name "~/.cache/emacs"))
 
-;; easy config open
+;; easy file open
 (defun find-config ()
   "Edit init.el"
   (interactive)
   (find-file "~/.emacs.d/init.el"))
 
-(global-set-key (kbd "C-c I") 'find-config)
+(defun find-org-todo ()
+  "TODO list"
+  (interactive)
+  (find-file "~/Documents/ORG/Agenda/todo.org"))
 
+(defun find-org-agenda ()
+  "Personal Agenda"
+  (interactive)
+  (find-file "~/Documents/ORG/Agenda/agenda.org"))
+
+(defun find-blog ()
+  "Blogging"
+  (interactive)
+  (find-file "~/websites/imstudyinghere/content-org/org-posts.org"))
+
+(global-set-key (kbd "C-c I") 'find-config)
+(global-set-key (kbd "C-c T") 'find-org-todo)
+(global-set-key (kbd "C-c A") 'find-org-agenda)
+(global-set-key (kbd "C-c H") 'find-blog)
+
+;; Personal fixes
 (fset 'yes-or-no-p 'y-or-n-p)
 
 (global-set-key (kbd "<escape>") 'keyboard-escape-quit )
@@ -66,20 +90,29 @@
 (when (eq system-type 'darwin)
   (setq gnutls-algorithm-priority "NORMAL:-VERS-TLS1.3"))
 
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name
+        "straight/repos/straight.el/bootstrap.el"
+        user-emacs-directory))
+      (bootstrap-version 5))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+
+ (straight-use-package 'use-package)
+ (setq straight-use-package-by-default t)
+
 (require 'package)
 (add-to-list 'package-archives '("gnu"   . "https://elpa.gnu.org/packages/") t)
 (add-to-list 'package-archives '("nongnu" . "https://elpa.nongnu.org/nongnu/") t)
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (add-to-list 'package-archives '("org" . "https://orgmode.org/elpa/") t)
-(package-initialize)
-
-(unless (package-installed-p 'use-package)
-  (package-refresh-contents)
-  (package-install 'use-package))
-
-(eval-and-compile
-  (setq use-package-always-ensure t
-        use-package-expand-minimally t))
 
 (add-to-list 'load-path "~/.emacs.d/load-path")
 
@@ -92,10 +125,43 @@
   :config
   (exec-path-from-shell-initialize))
 
-;; Zen mode
-(use-package zen-mode)
-(require 'zen-mode)
-(global-set-key (kbd "C-M-z") 'zen-mode)
+(use-package smex
+  :init (smex-initialize))
+
+;; Dashboard
+(use-package dashboard
+  :config
+  (dashboard-setup-startup-hook)
+  (setq dashboard-set-heading-icons t)
+  (setq dashboard-set-file-icons t))
+
+;; Company
+(use-package company
+  :init (add-hook 'after-init-hook 'global-company-mode)
+  :config
+  (setq company-idle-delay 0)
+  (setq company-minimum-prefix-length 1)
+  (setq company-backends
+	'((company-files          ; files & directory
+	   company-keywords       ; keywords
+	   company-capf           ; what is this?
+	   company-yasnippet)
+	  (company-abbrev company-dabbrev)))
+  (company-tng-configure-default))
+
+;; Yassnipets
+(use-package yasnippet)
+(use-package yasnippet-snippets)
+
+(yas-global-mode t) ;; activate yasnippet
+
+;; Projectile
+(use-package projectile
+  :init (projectile-mode +1)
+  :config
+  (setq projectile-project-search-path '("~/Documents/Projects"))
+  :bind
+  ("s-p" . projectile-command-map))
 
 ;;ivy
 (use-package ivy)
@@ -115,13 +181,13 @@
 (global-set-key (kbd "C-x b") 'ivy-switch-buffer)
 (global-set-key (kbd "C-c v") 'ivy-push-view)
 (global-set-key (kbd "C-c V") 'ivy-pop-view)
+(global-set-key (kbd "C-c t") 'counsel-org-tag)
 
 (use-package counsel
   :bind (("M-x" . counsel-M-x)))
 
 ;;Doom Modeline
 (use-package doom-modeline
-  :ensure t
   :init (doom-modeline-mode 1))
 
 ;;all-the-icons
@@ -130,57 +196,56 @@
 ;;Code
 ;;Magit
 (use-package magit
-  :ensure t
   :bind ("C-c m s" . magit-status))
-
-;;LSP mode
-(use-package lsp-mode
-  :init
-  ;; set prefix for lsp-command-keymap (few alternatives - "C-l", "C-c l")
-  (setq lsp-keymap-prefix "C-c l")
-  :hook ((c-mode . lsp)
-         (c++-mode . lsp)
-         ;; if you want which-key integration
-         (lsp-mode . lsp-enable-which-key-integration))
-  :commands (lsp lsp-deferred))
-
-(use-package lsp-ui :commands lsp-ui-mode)
-(use-package lsp-ivy :commands lsp-ivy-workspace-symbol)
-
-;; Dap-mode
-(use-package dap-mode)
-(setq dap-auto-configure-features '(sessions locals controls tooltip))
-;;C++
-(require 'dap-cpptools)
-
-;;Javascript
-(require 'dap-firefox)
-
-;; Auto-compleat framework
-(use-package company
-  :ensure t
-  :diminish company-mode
-  :bind ("M-/" . company-complete)  
-  :config
-  (setq company-show-numbers            t
-	company-minimum-prefix-length   1
-	company-idle-delay              0.5
-	company-backends
-	'((company-files         
-	   company-keywords      
-	   company-capf          
-	   company-yasnippet)
-	  (company-abbrev company-dabbrev)))
-  (global-company-mode))
 
 ;;Flycheck
 (use-package flycheck
-  :ensure t
   :init (global-flycheck-mode)
   :config
   (setq flycheck-display-errors-function
 	#'flycheck-display-error-messages-unless-error-list))
-  
+
+(use-package flycheck-irony
+  :after flycheck
+  :hook
+  (flycheck-mode-hook . flycheck-irony-setup))
+
+(use-package flycheck-cask
+  :after flycheck
+  :hook
+  (flycheck-mode-hook . flycheck-cask-setup))
+
+;; eglot
+(defun dd/projectile-proj-find-function (dir)
+  (let ((root (projectile-project-root dir)))
+    (and root (cons 'transient root))))
+
+(use-package eglot)
+
+(defun dd/cpp-eglot-enable ()
+  "enable variables and hooks for eglot cpp IDE"
+  (interactive)
+  (setq company-backends
+        (cons 'company-capf
+              (remove 'company-capf company-backends)))
+  (with-eval-after-load 'project
+    (add-to-list 'project-find-functions
+                 'dd/projectile-proj-find-function))
+  (add-to-list 'eglot-server-programs
+               `((c++-mode) ,ddavis-clangd-exe))
+  (add-hook 'c++-mode-hook 'eglot-ensure))
+
+(defun my-project-try-tsconfig-json (dir)
+  (when-let* ((found (locate-dominating-file dir "tsconfig.json")))
+    (cons 'eglot-project found)))
+
+(add-hook 'project-find-functions
+          'my-project-try-tsconfig-json nil nil)
+
+(add-to-list 'eglot-server-programs
+             '((typescript-mode) "typescript-language-server" "--stdio"))
+
+
 ;;;ORG
 (defun my-org-mode-hook ()
   (add-hook 'completion-at-point-functions 'pcomplete-completions-at-point nil t))
@@ -206,24 +271,43 @@
 	'("~/Documents/ORG/Agenda/agenda.org"
 	  "~/Documents/ORG/Agenda/todo.org"
 	  "~/Documents/ORG/Agenda/habits.org"))
-  (setq org-capture-templates '(("p" "planer")
-				("pt" "todo" entry (file "~/Documents/ORG/Agenda/todo.org")
+  (setq org-capture-templates '(("p" "Planer")
+				("pt" "Tasks" entry (file "~/Documents/ORG/Agenda/todo.org")
                                  "* TODO %?\n  %U\n  %a\n  %i" :empty-lines 1)
-			        ("pd" "Agenda" entry (file+olp "~/Documents/ORG/Agenda/agenda.org" "Not Started")
+			        ("pa" "Agenda" entry (file+olp "~/Documents/ORG/Agenda/agenda.org" "Not Started")
                                  "* TODO %?\n  %U\n  %a\n  %i" :empty-lines 1)))
   (setq org-refile-targets
-    '(("archive.org" :maxlevel . 1)
+    '(("~/Documents/ORG/Agenda/Archive/archive.org" :maxlevel . 1)
       ("agenda.org" :maxlevel . 1)
-      ("todo.org" :maxlevel . 1))
-    )
+      ("todo.org" :maxlevel . 1)))
   (advice-add 'org-refile :after 'org-save-all-org-buffers)
   (setq org-image-actual-width nil)
   (setq org-enforce-todo-dependencies t)
   (setq org-log-done 'time)
+  (setq org-tag-alist (quote ((:startgroup)
+                            ("@city" . ?e)
+                            ("@campus" . ?o)
+                            ("@home" . ?H)
+                            (:endgroup)
+                            ("uni" . ?w)
+                            ("personal" . ?h)
+                            ("org" . ?P)
+                            ("holiday" . ?W)
+                            ("programming" . ?F)
+                            ("sib" . ?O)
+                            ("friends" . ?N)
+                            ("blog" . ?E))))
   (setq org-todo-keywords '((sequence "TODO(t)" "PLANING(p)" "NEXT(n)" "WAITING(w)" "|" "DONE(d)" "CANCELLED(c)" "SKIPED(s)")))
   (setq org-agenda-custom-commands
 	'(("d" "Dashboard"
-	   ((agenda "" ((org-deadline-warning-days 7)))
+	   ((tags-todo "*"
+                     ((org-agenda-skip-function '(org-agenda-skip-if nil '(timestamp)))
+                      (org-agenda-skip-function
+                       `(org-agenda-skip-entry-if
+                         'notregexp ,(format "\\[#%s\\]" (char-to-string org-priority-highest))))
+                      (org-agenda-block-separator nil)
+                      (org-agenda-overriding-header "Important tasks without a date\n")))
+	    (agenda "" ((org-deadline-warning-days 7)))
 	    (todo "NEXT"
 		  ((org-agenda-overriding-header "Next Tasks")))
 	    (tags-todo "+personal" ((org-agenda-overriding-header "Personal Tasks")))
@@ -233,58 +317,32 @@
 	  ("H" "Homeworks" tags-todo "+homework")
 	  ("S" "Shopping" tags-todo "+shoping"))))
 
-(defun find-org-todo ()
-  "TODO list"
-  (interactive)
-  (find-file "~/Documents/ORG/Agenda/todo.org"))
-
-(global-set-key (kbd "C-c T") 'find-org-todo)
-
-(defun find-org-agenda ()
-  "Personal Agenda"
-  (interactive)
-  (find-file "~/Documents/ORG/Agenda/agenda.org"))
-
-(global-set-key (kbd "C-c A") 'find-org-agenda)
-
 (add-to-list 'auto-mode-alist '("\\.org\\'" . org-mode))
+
 (global-set-key "\C-c l" 'org-store-link)
 (global-set-key "\C-c a" 'org-agenda)
-
 (global-set-key (kbd "C-c a") #'org-agenda)
 (global-set-key (kbd "C-c c") #'org-capture)
 (global-set-key (kbd "C-c r") #'org-refile)
 (global-set-key (kbd "C-c s") #'org-schedule)
 
-;;Hugo Blog file
-(defun find-blog ()
-  "Blogging"
-  (interactive)
-  (find-file "~/websites/imstudyinghere/content-org/org-posts.org"))
-
-(global-set-key (kbd "C-c H") 'find-blog)
-
 ;; ORG-Roam
 (use-package org-roam
-  :after (org emacsql emacsql-sqlite)
+  :after org
   :init
   (setq org-roam-v2-ack t)
   :custom
   (org-roam-directory "~/Documents/ORG/Notes")
-  (org-roam-dailies-directory "Daily/")
-  (setq org-roam-dailies-capture-templates
-      '(("d" "default" entry
-         "* %?"
-         :target (file+head "%<%Y-%m-%d>.org"
-                            "#+title: %<%Y-%m-%d>\n"))))
   :config
   (org-roam-db-autosync-mode)
-  :bind
-  ("C-c n l" . org-roam)
-  ("C-c n t" . org-roam-today)
-  ("C-c n f" . org-roam-find-file)
-  ("C-c n i" . org-roam-insert)
-  ("C-c n g" . org-roam-show-graph))
+  :bind (("C-c n f" . org-roam-node-find)
+         ("C-c n r" . org-roam-node-random)		    
+         (:map org-mode-map
+               (("C-c n i" . org-roam-node-insert)
+                ("C-c n o" . org-id-get-create)
+                ("C-c n t" . org-roam-tag-add)
+                ("C-c n a" . org-roam-alias-add)
+                ("C-c n l" . org-roam-buffer-toggle)))))
 
 ;; Org Drag and drop support
 (use-package org-download)
@@ -295,23 +353,16 @@
   :hook
   (org-mode . (lambda () (org-bullets-mode 1))))
 
-;;ORG export
 (use-package ox-html
-  :ensure nil
+  :straight nil
   :defer 3
   :after org
   :custom
   (org-html-checkbox-type 'unicode))
 
-(use-package ox-md
-  :ensure nil
-  :defer 3
-  :after org)
-
-(use-package ox-hugo
-  :defer 3
-  :after org
-  :custom
-  (org-hugo-use-code-for-kbd t))
+(require 'ox-html)
+(require 'ox-md)
+(require 'ox-latex)
+(straight-use-package 'ox-hugo)
 
 ;;; init.el ends here
